@@ -2,22 +2,25 @@ use secp256k1::key::PublicKey;
 
 use crate::crypto;
 
+#[derive(Debug)]
+#[derive(Copy, Clone)]
 pub struct Transaction {
     pub from: PublicKey,
     pub to: PublicKey,
-    pub amount: i32
+    pub amount: u32
 }
 
 impl Transaction{
-    pub fn to_string(& self) -> String {
+    pub fn serialize(&self) -> String {
         return format!("{}{}{}", self.from, &self.to, hex::encode(&format!("{}", self.amount)));
     }
 
-    pub fn hash(& self) -> Vec<u8> {
-        return crypto::sha256(self.to_string())
+    pub fn hash(&self) -> Vec<u8> {
+        return crypto::sha256(self.serialize())
     }
 }
 
+#[derive(Debug)]
 pub struct SignedTransaction {
     pub transaction: Transaction,
     pub sig: String,
@@ -25,6 +28,6 @@ pub struct SignedTransaction {
 
 impl SignedTransaction{
     pub fn to_string(& self) -> String {
-        return format!("{}{}", self.transaction.to_string(), self.sig);
+        return format!("{}{}", self.transaction.serialize(), self.sig);
     }
 }
