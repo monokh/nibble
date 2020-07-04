@@ -21,19 +21,19 @@ impl ProposedBlock {
 
     pub fn mine (self, difficulty: usize) -> Block {
         let mut nonce: u32 = 0;
-        let mut block_hash: String = String::new();
         let block_string = self.serialize();
         
-        while !block_hash.starts_with(&"0".repeat(difficulty)) {
+        loop {
             let block = format!("{}{}", block_string, nonce);
-            block_hash = hex::encode(crypto::sha256(block.clone()));
+            let block_hash = hex::encode(crypto::sha256(block.clone()));
+            if block_hash.starts_with(&"0".repeat(difficulty)) {
+                return Block {
+                    hash: block_hash,
+                    nonce,
+                    transactions: self.transactions
+                }
+            }
             nonce += 1;
-        }
-
-        return Block {
-            hash: block_hash,
-            nonce,
-            transactions: self.transactions
         }
     }
 }
