@@ -6,17 +6,27 @@ use crate::crypto;
 #[derive(Debug)]
 pub struct Block {
     pub hash: String,
+    pub prev_block: String,
     pub nonce: u32,
     pub transactions: Vec<transaction::SignedTransaction>,
 }
 
+impl Block {
+    pub fn serialize(&self) -> String {
+        let txs = self.transactions.iter().fold(String::new(), |a, b| a + &b.to_string());
+        return format!("{}{}{}", self.prev_block, txs, self.nonce)
+    }
+}
+
 pub struct ProposedBlock {
+    pub prev_block: String,
     pub transactions: Vec<transaction::SignedTransaction>
 }
 
 impl ProposedBlock {
     pub fn serialize(&self) -> String {
-        return self.transactions.iter().fold(String::new(), |a, b| a + &b.to_string());
+        let txs = self.transactions.iter().fold(String::new(), |a, b| a + &b.to_string());
+        return format!("{}{}", self.prev_block, txs)
     }
 
     pub fn mine (self, difficulty: usize) -> Block {
@@ -30,6 +40,7 @@ impl ProposedBlock {
                 return Block {
                     hash: block_hash,
                     nonce,
+                    prev_block: self.prev_block,
                     transactions: self.transactions
                 }
             }

@@ -2,6 +2,8 @@ use secp256k1::key::PublicKey;
 
 use crate::crypto;
 
+use crypto::key;
+
 #[derive(Debug)]
 #[derive(Copy, Clone)]
 pub struct Transaction {
@@ -30,4 +32,19 @@ impl SignedTransaction{
     pub fn to_string(& self) -> String {
         return format!("{}{}", self.transaction.serialize(), self.sig);
     }
+}
+
+pub fn create_signed(keypair: &crypto::KeyPair, to: key::PublicKey, amount: u32) -> SignedTransaction {
+    let tx = Transaction {
+        from: keypair.public_key,
+        to,
+        amount,
+    };
+
+    let sig = keypair.sign(&tx.hash());
+
+    return SignedTransaction{
+        transaction: tx,
+        sig: sig.to_string(),
+    };
 }
