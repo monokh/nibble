@@ -35,11 +35,7 @@ impl KeyPair {
     }
 
     pub fn sign(&self, message: &[u8]) -> Signature {
-        let message = match Message::from_slice(message) {
-            Ok(msg) => msg,
-            Err(e) => panic!("{}", e)
-        };
-        
+        let message = Message::from_slice(message).expect("message from slice");
         return self.secp.sign(&message, &self.private_key);
     }
 }
