@@ -4,6 +4,7 @@ use crate::transaction;
 use crate::crypto;
 
 #[derive(Debug)]
+#[derive(Clone)]
 pub struct Block {
     pub hash: String,
     pub prev_block: String,

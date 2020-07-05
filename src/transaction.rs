@@ -1,4 +1,6 @@
 use secp256k1::key::PublicKey;
+use secp256k1::{Secp256k1, Signature, Message};
+use std::str::FromStr;
 
 use crate::crypto;
 
@@ -23,6 +25,7 @@ impl Transaction{
 }
 
 #[derive(Debug)]
+#[derive(Clone)]
 pub struct SignedTransaction {
     pub transaction: Transaction,
     pub sig: String,
@@ -31,6 +34,13 @@ pub struct SignedTransaction {
 impl SignedTransaction{
     pub fn to_string(& self) -> String {
         return format!("{}{}", self.transaction.serialize(), self.sig);
+    }
+
+    pub fn is_sig_valid(& self) -> bool {
+        let secp = Secp256k1::verification_only();
+        let unsgined_tx_hash = Message::from_slice(self.transaction.hash().as_slice()).expect("message from slice");
+        let sig = Signature::from_str(self.sig.as_str()).expect("signature from string");
+        return secp.verify(&unsgined_tx_hash, &sig, &self.transaction.from).is_ok();
     }
 }
 
