@@ -1,6 +1,6 @@
 use hex;
 
-use crate::transaction;
+use crate::tx;
 use crate::crypto;
 
 #[derive(Debug)]
@@ -9,7 +9,7 @@ pub struct Block {
     pub hash: String,
     pub prev_block: String,
     pub nonce: u32,
-    pub transactions: Vec<transaction::SignedTransaction>,
+    pub transactions: Vec<tx::SignedTransaction>,
 }
 
 impl Block {
@@ -21,7 +21,7 @@ impl Block {
 
 pub struct ProposedBlock {
     pub prev_block: String,
-    pub transactions: Vec<transaction::SignedTransaction>
+    pub transactions: Vec<tx::SignedTransaction>
 }
 
 impl ProposedBlock {

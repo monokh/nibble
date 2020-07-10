@@ -1,36 +1,42 @@
 use crate::block;
-use crate::transaction;
+use crate::tx;
 use crate::crypto;
 
 use crypto::key;
 use std::collections::HashMap;
 
-static MINING_REWARD: u32 = 50;
 static DIFFICULTY: usize = 3;
 static GENESIS_PREV_BLOCK_HASH: &str = "000000000000000000000000000000000000000000000000000000000000000";
 
 pub struct Node {
-    blocks: Vec<block::Block>,
-    balances: HashMap<key::PublicKey, u32>,
-    mempool: Vec<transaction::SignedTransaction>,
-    keypair: crypto::KeyPair,
+    pub blocks: Vec<block::Block>,
+    pub balances: HashMap<key::PublicKey, u32>,
+    pub mempool: Vec<tx::SignedTransaction>,
+    pub keypair: crypto::KeyPair,
 }
 
 impl Node {
-    fn create_coinbase_tx (&self) -> transaction::SignedTransaction {
-        return transaction::create_signed(&self.keypair, self.keypair.public_key, MINING_REWARD)
+    fn get_block_reward (&self, block_number: usize) -> u32 {
+        let halving = block_number / 1000;
+        if halving >= 10 { return 0 }
+        return 512 >> halving;
+    }
+
+    fn create_coinbase_tx (&self) -> tx::SignedTransaction {
+        let reward = self.get_block_reward(self.blocks.len());
+        return tx::create_signed(&self.keypair, self.keypair.public_key, reward)
     }
 
     fn make_genesis_block (&self) -> block::ProposedBlock {
-        let genesis_block = block::ProposedBlock {
+        return block::ProposedBlock {
             prev_block: String::from(GENESIS_PREV_BLOCK_HASH),
             transactions: vec![self.create_coinbase_tx()]
         };
-
-        return genesis_block
     }
 
     fn verify_block(&self, block: &block::Block) -> Result <(), &'static str> {
+        if !block.hash.starts_with(&"0".repeat(DIFFICULTY)) { return Err("Block verification: Must contain correct PoW according to difficulty") }
+
         let block_hash = crypto::sha256(block.serialize());
         if hex::encode(block_hash) != block.hash { return Err("Block verification: Hash must match hash included in block") }
 
@@ -38,25 +44,30 @@ impl Node {
         let prev_block_hash = prev_block.map_or(GENESIS_PREV_BLOCK_HASH, |b| b.hash.as_str());
         if block.prev_block != prev_block_hash { return Err("Block verification: Must reference previous block's hash") }
 
-        if !block.hash.starts_with(&"0".repeat(DIFFICULTY)) { return Err("Block verification: Must contain correct PoW according to difficulty") }
-
         for (i, tx) in block.transactions.iter().enumerate() {
-            self.verify_transaction(&tx, i == 0)?;
+            if i == 0 { self.verify_coinbase_tx(&tx, self.blocks.len())? } else { self.verify_reg_tx(&tx)? };
         }
 
-        // TODO: more validation required
+        // and many more
+
         return Ok(());
     }
 
-    fn verify_transaction(&self, tx: &transaction::SignedTransaction, is_coinbase: bool) -> Result <(), &'static str> {
+    fn verify_tx(&self, tx: &tx::SignedTransaction) -> Result <(), &'static str> {
         if !tx.is_sig_valid() { return Err("Transaction verification: Invalid signature") }
+        return Ok(());
+    }
 
+    fn verify_coinbase_tx(&self, tx: &tx::SignedTransaction, block_number: usize) -> Result <(), &'static str> {
+        self.verify_tx(&tx)?;
+        if tx.transaction.amount != self.get_block_reward(block_number) { return Err("Transaction verification: Coinbase amount not valid") }
+        return Ok(());
+    }
+
+    fn verify_reg_tx(&self, tx: &tx::SignedTransaction) -> Result <(), &'static str> {
+        self.verify_tx(&tx)?;
         let from_balance = self.balances.get(&tx.transaction.from);
-
-        if !is_coinbase { // Coinbase is new issuance - it doesn't need a balance
-            if *from_balance.unwrap_or(&0) < tx.transaction.amount { return Err("Transaction verification: Not enough balance") }
-        }
-
+        if *from_balance.unwrap_or(&0) < tx.transaction.amount { return Err("Transaction verification: Not enough balance") }
         return Ok(());
     }
 
@@ -68,48 +79,43 @@ impl Node {
         }
     }
 
-    fn process_block(&mut self, block: block::Block) {
-        match self.verify_block(&block) {
-            Ok(()) => {
-                self.process_block_transactions(&block);
-                println!("Mined block: {}", block.hash);
-                println!("Balances: {:#?}", self.balances);
-                self.blocks.push(block);
-            },
-            Err(e) => println!("{}", e),
-        }
+    fn process_block(&mut self, block: &block::Block) -> Result<(), &'static str> {
+        self.verify_block(&block)?;
+        self.process_block_transactions(&block);
+        self.blocks.push(block.clone());
+        return Ok(());
     }
 
-    fn send_transaction (&mut self, tx: transaction::SignedTransaction) {
-        match self.verify_transaction(&tx, false) {
-            Ok(()) => {
-                self.mempool.push(tx);
-            },
-            Err(e) => println!("{}", e),
-        }
+    pub fn send_transaction (&mut self, public_key: key::PublicKey, amount: u32) -> Result<tx::SignedTransaction, &'static str> {
+        let tx = tx::create_signed(&self.keypair, public_key, amount);
+        self.verify_reg_tx(&tx)?;
+        self.mempool.push(tx.clone());
+        return Ok(tx);
     }
 
-    fn mine (&mut self) {
-        loop {
-            let random_key = crypto::KeyPair::new();
-            self.send_transaction(transaction::create_signed(&self.keypair, random_key.public_key, 3));
-            let mut txs = vec![self.create_coinbase_tx()];
-            txs.extend(self.mempool.clone());
-            let prev_block = self.blocks.last().expect("Previous block does not exist");
-            let proposed_block = block::ProposedBlock {
-                prev_block: prev_block.hash.clone(),
-                transactions: txs,
-            };
-            let block = proposed_block.mine(DIFFICULTY);
-            self.process_block(block);
-            self.mempool = Vec::new();
-        }
+    pub fn new_pubkey (&mut self) -> key::PublicKey {
+        let random_key = crypto::KeyPair::new();
+        return random_key.public_key;
     }
 
-    pub fn start (&mut self) {
+    pub fn mine (&mut self) -> Result<block::Block, &'static str> {
+        let mut txs = vec![self.create_coinbase_tx()];
+        txs.extend(self.mempool.clone());
+        let prev_block = self.blocks.last().expect("Previous block does not exist");
+        let proposed_block = block::ProposedBlock {
+            prev_block: prev_block.hash.clone(),
+            transactions: txs,
+        };
+        let block = proposed_block.mine(DIFFICULTY);
+        self.process_block(&block)?;
+        self.mempool = Vec::new();
+        return Ok(block);
+    }
+
+    pub fn start (&mut self) -> Result<block::Block, &'static str> {
         let genesis_block = self.make_genesis_block().mine(DIFFICULTY);
-        self.process_block(genesis_block);
-        self.mine();
+        self.process_block(&genesis_block)?;
+        return Ok(genesis_block);
     }
 
     pub fn new () -> Node {

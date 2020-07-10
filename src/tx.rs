@@ -1,17 +1,27 @@
 use secp256k1::key::PublicKey;
 use secp256k1::{Secp256k1, Signature, Message};
 use std::str::FromStr;
+use std::fmt;
 
 use crate::crypto;
 
 use crypto::key;
 
-#[derive(Debug)]
 #[derive(Copy, Clone)]
 pub struct Transaction {
     pub from: PublicKey,
     pub to: PublicKey,
     pub amount: u32
+}
+
+impl fmt::Debug for Transaction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Transaction")
+         .field("from", &format!("{}", self.from))
+         .field("to", &format!("{}", self.to))
+         .field("amount", &self.amount)
+         .finish()
+    }
 }
 
 impl Transaction{
@@ -38,9 +48,9 @@ impl SignedTransaction{
 
     pub fn is_sig_valid(& self) -> bool {
         let secp = Secp256k1::verification_only();
-        let unsgined_tx_hash = Message::from_slice(self.transaction.hash().as_slice()).expect("message from slice");
+        let unsigned_tx_hash = Message::from_slice(self.transaction.hash().as_slice()).expect("message from slice");
         let sig = Signature::from_str(self.sig.as_str()).expect("signature from string");
-        return secp.verify(&unsgined_tx_hash, &sig, &self.transaction.from).is_ok();
+        return secp.verify(&unsigned_tx_hash, &sig, &self.transaction.from).is_ok();
     }
 }
 
