@@ -1,13 +1,13 @@
+use crate::crypto;
+
+use crypto::key;
 use secp256k1::key::PublicKey;
 use secp256k1::{Secp256k1, Signature, Message};
 use std::str::FromStr;
 use std::fmt;
+use serde::{Serialize, Deserialize};
 
-use crate::crypto;
-
-use crypto::key;
-
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Serialize, Deserialize)]
 pub struct Transaction {
     pub from: PublicKey,
     pub to: PublicKey,
@@ -34,8 +34,7 @@ impl Transaction{
     }
 }
 
-#[derive(Debug)]
-#[derive(Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignedTransaction {
     pub transaction: Transaction,
     pub sig: String,

@@ -1,10 +1,10 @@
-use hex;
-
 use crate::tx;
 use crate::crypto;
 
-#[derive(Debug)]
-#[derive(Clone)]
+use hex;
+use serde::{Serialize, Deserialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Block {
     pub hash: String,
     pub prev_block: String,

@@ -3,6 +3,7 @@ use secp256k1::{Secp256k1, Message};
 use secp256k1::rand;
 use secp256k1::All;
 use secp256k1::Signature;
+use std::str::FromStr;
 
 pub mod key {
     pub use secp256k1::key::PublicKey;
@@ -18,7 +19,7 @@ pub fn sha256 (payload: String) -> Vec<u8> {
 pub struct KeyPair {
     secp: Secp256k1<All>, // TODO: how to make this global?
     pub public_key: key::PublicKey,
-    private_key: key::SecretKey,
+    pub private_key: key::SecretKey,
 }
 
 impl KeyPair {
@@ -32,6 +33,17 @@ impl KeyPair {
             public_key,
             private_key,
         }
+    }
+
+    pub fn from(key: String) -> Result<KeyPair, secp256k1::Error> {
+        let secp = Secp256k1::new();
+        let private_key = key::SecretKey::from_str(&key)?;
+        let public_key = key::PublicKey::from_secret_key(&secp, &private_key);
+        return Ok(KeyPair {
+            secp,
+            public_key,
+            private_key,
+        });
     }
 
     pub fn sign(&self, message: &[u8]) -> Signature {

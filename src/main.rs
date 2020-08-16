@@ -2,6 +2,7 @@ mod node;
 mod block;
 mod tx;
 mod crypto;
+mod storage;
 
 use clap::{Arg, App, SubCommand};
 use node::Node;
@@ -13,8 +14,8 @@ use std::str::FromStr;
 
 fn main() -> std::io::Result<()> {
     let mut node = Node::new();
-    let genesis_block = node.start().expect("Start failed");
-    println!("Genesis Block Mined: {:#?}", genesis_block);
+    let latest_block = node.start().expect("Start failed");
+    println!("Latest Block: {:#?}", latest_block);
     println!("Your Public Key: {}", node.keypair.public_key);
 
     let cli = App::new("Nibble")
@@ -70,7 +71,7 @@ fn main() -> std::io::Result<()> {
 
                 if let Some(_) = matches.subcommand_matches("balances") {
                     println!("{{");
-                    for (&pubkey, &amount) in &node.balances {
+                    for (&pubkey, &amount) in &storage::get_balances(&node.db_balances).unwrap() {
                         println!("    {}: {}", pubkey, amount);
                     }
                     println!("}}");
