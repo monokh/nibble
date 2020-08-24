@@ -8,14 +8,15 @@ use jsonrpc_derive::rpc;
 use crate::crypto;
 use crate::node;
 use crate::tx;
-use crate::key;
 use crate::storage;
+
+use crypto::key;
 
 use std::collections::HashMap;
 use rocksdb::{DB, Options};
 use std::sync::{Arc, Mutex};
 
-#[rpc(server)]
+#[rpc(server, client)]
 pub trait Rpc {
 	#[rpc(name = "protocolVersion")]
 	fn protocol_version(&self) -> Result<String>;

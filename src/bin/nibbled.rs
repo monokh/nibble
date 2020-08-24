@@ -1,13 +1,7 @@
-mod node;
-mod block;
-mod tx;
-mod crypto;
-mod storage;
-mod miner;
-mod rpc;
-
-use node::Node;
-use crypto::key;
+use nibble::node::Node;
+use nibble::crypto::key;
+use nibble::miner;
+use nibble::rpc;
 
 use std::sync::{Arc, Mutex};
 use std::thread;
