@@ -9,20 +9,21 @@ use std::fs;
 use std::error::Error;
 use std::path::Path;
 
-static DIFFICULTY: usize = 3;
-static GENESIS_PREV_BLOCK_HASH: &str = "000000000000000000000000000000000000000000000000000000000000000";
-static BLOCKS_DB_PATH: &str = "data/blocks";
-static BLOCKS_METADATA_DB_PATH: &str = "data/blocksmetadata";
-static BALANCES_DB_PATH: &str = "data/balances";
-static WALLET_PATH: &str = "data/wallet.key";
-static DATA_DIR: &str = "data";
+pub static DIFFICULTY: usize = 3;
+pub static GENESIS_PREV_BLOCK_HASH: &str = "000000000000000000000000000000000000000000000000000000000000000";
+pub static BLOCKS_DB_PATH: &str = "data/blocks";
+pub static BLOCKS_METADATA_DB_PATH: &str = "data/blocksmetadata";
+pub static BALANCES_DB_PATH: &str = "data/balances";
+pub static WALLET_PATH: &str = "data/wallet.key";
+pub static DATA_DIR: &str = "data";
 
 pub struct Node {
     pub mempool: Vec<tx::SignedTransaction>,
     pub keypair: crypto::KeyPair,
+
     pub db_blocks: DB,
     pub db_blocks_metadata: DB,
-    pub db_balances: DB
+    pub db_balances: DB,
 }
 
 impl Node {
@@ -55,7 +56,7 @@ impl Node {
         return Ok(block);
     }
 
-    fn get_latest_block_number(&self) -> Result<usize, String>{
+    pub fn get_latest_block_number(&self) -> Result<usize, String>{ // TODO: why is block number usize?
         let latest_block_hash = match storage::get_latest_block_hash(&self.db_blocks_metadata)? {
             Some(hash) => hash,
             None => return Ok(0)
@@ -134,37 +135,6 @@ impl Node {
         return Ok(tx);
     }
 
-    pub fn new_pubkey (&mut self) -> key::PublicKey {
-        let random_key = crypto::KeyPair::new();
-        return random_key.public_key;
-    }
-
-    pub fn mine (&mut self) -> Result<block::Block, String> {
-        let mut txs = vec![self.create_coinbase_tx()?];
-        txs.extend(self.mempool.clone());
-        let prev_block = self.get_latest_block().expect("Previous block does not exist").unwrap();
-        let proposed_block = block::ProposedBlock {
-            prev_block: prev_block.hash.clone(),
-            transactions: txs,
-        };
-        let block = proposed_block.mine(DIFFICULTY);
-        self.process_block(&block)?;
-        self.mempool = Vec::new();
-        return Ok(block);
-    }
-
-    pub fn start (&mut self) -> Result<block::Block, String> {
-        match self.get_latest_block()? {
-            Some(latest_block) => return Ok(latest_block),
-            None => {
-                let unmined_genesis_block = self.make_genesis_block()?;
-                let genesis_block = unmined_genesis_block.mine(DIFFICULTY);
-                self.process_block(&genesis_block)?;
-                return Ok(genesis_block);
-            }
-        }
-    }
-
     pub fn get_keypair () -> Result<crypto::KeyPair, Box<dyn Error>> {
         if Path::new(WALLET_PATH).exists() {
             let key = fs::read_to_string(WALLET_PATH)?;
@@ -174,6 +144,35 @@ impl Node {
         let keypair = crypto::KeyPair::new();
         fs::write(WALLET_PATH, keypair.private_key.to_string())?;
         return Ok(keypair);
+    }
+
+    pub fn start (&mut self) -> Result<block::Block, String> {
+        let latest_block = match self.get_latest_block()? {
+            Some(latest_block) => latest_block,
+            None => {
+                let unmined_genesis_block = self.make_genesis_block()?;
+                let genesis_block = unmined_genesis_block.mine(DIFFICULTY);
+                self.process_block(&genesis_block)?;
+                genesis_block
+            }
+        };
+        return Ok(latest_block);
+    }
+
+    pub fn get_proposed_block (&mut self) -> Result<block::ProposedBlock, String> {
+        let mut txs = vec![self.create_coinbase_tx()?];
+        txs.extend(self.mempool.clone());
+        let prev_block = self.get_latest_block().expect("Previous block does not exist").unwrap();
+        return Ok(block::ProposedBlock {
+            prev_block: prev_block.hash.clone(),
+            transactions: txs,
+        });
+    }
+
+    pub fn receive_block (&mut self, block: block::Block) -> Result<(), String> {
+        self.process_block(&block)?;
+        self.mempool = Vec::new();
+        return Ok(());
     }
 
     pub fn new () -> Node {
