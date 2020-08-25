@@ -1,5 +1,4 @@
 use nibble::node::Node;
-use nibble::crypto::key;
 use nibble::miner;
 use nibble::rpc;
 

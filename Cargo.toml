@@ -22,7 +22,7 @@ reqwest = { version = "0.10.7", features = ["json"] }
 tokio = { version = "0.2.22", features = ["full"] }
 jsonrpc-client-http = "0.5.0"
 jsonrpc-client-core = "0.5.0"
-jsonrpc-core-client = "14.2.0"
+jsonrpc-core-client = { version = "14.2.0", features = ["http"] }
 
 [dependencies.secp256k1] 
 version = "0.17.2"

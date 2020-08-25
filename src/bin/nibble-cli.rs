@@ -1,0 +1,97 @@
+use nibble::tx;
+use nibble::crypto::key;
+
+use clap::{Arg, App, SubCommand};
+use tokio;
+use std::io;
+use std::io::Write;
+use std::collections::HashMap;
+use std::str::FromStr;
+use jsonrpc_client_http::HttpTransport;
+
+#[macro_use] extern crate jsonrpc_client_core;
+
+jsonrpc_client!(pub struct NibbleClient {
+    /// Returns the fizz-buzz string for the given number.
+    pub fn newpubkey(&mut self) -> RpcRequest<String>;
+    pub fn getpubkey(&mut self) -> RpcRequest<String>;
+    pub fn send(&mut self, pubkey: key::PublicKey, amount: u32) -> RpcRequest<tx::SignedTransaction>;
+    pub fn blockheight(&mut self) -> RpcRequest<usize>;
+    pub fn balances(&mut self) -> RpcRequest<HashMap<key::PublicKey, u32>>;
+    pub fn mempool(&mut self) -> RpcRequest<Vec<tx::SignedTransaction>>;
+});
+
+static RPC_SERVER: &str = "http://localhost:1337";
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let cli = App::new("Nibble")
+    .version("1.0")
+    .author("monokh")
+    .about("Bitcoin")
+    .subcommand(SubCommand::with_name("getpubkey")
+                .about("Get node's public key"))
+    .subcommand(SubCommand::with_name("newpubkey")
+                .about("Generate a random pubkey"))
+    .subcommand(SubCommand::with_name("mempool")
+                .about("Returns the transactions in the mempool"))
+    .subcommand(SubCommand::with_name("balances")
+                .about("Returns balances for each pubkey known by the node"))
+    .subcommand(SubCommand::with_name("send")
+                .about("Send a transaction")
+                .arg(Arg::with_name("pubkey")
+                    .required(true)
+                    .index(1))
+                    .about("Pubkey of receiver")
+                .arg(Arg::with_name("amount")
+                    .required(true)
+                    .index(2))
+                    .about("Amount to send"));
+
+    let transport = HttpTransport::new().standalone().unwrap();
+    let transport_handle = transport.handle(&RPC_SERVER).unwrap();
+    let mut client = NibbleClient::new(transport_handle);
+
+    loop {
+        print!("> ");
+        io::stdout().flush().unwrap();
+
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+
+        let mut args = vec!["nibble"];
+        let params = input.trim().split(" ");
+        args.extend(params);
+
+        match cli.clone().get_matches_from_safe(args) {
+            Ok(matches) => {
+                if let Some(_) = matches.subcommand_matches("getpubkey") {
+                    println!("{}", client.getpubkey().call().unwrap());
+                }
+
+                if let Some(_) = matches.subcommand_matches("newpubkey") {
+                    println!("{}", client.newpubkey().call().unwrap());
+                }
+
+                if let Some(_) = matches.subcommand_matches("mempool") {
+                    println!("{:#?}", client.mempool().call().unwrap());
+                }
+
+                if let Some(_) = matches.subcommand_matches("balances") {
+                    let result = client.balances().call().unwrap();
+                    println!("{}", serde_json::to_string_pretty(&result)?);
+                }
+
+                if let Some(cmd) = matches.subcommand_matches("send") {
+                    let pubkey = cmd.value_of("pubkey").unwrap();
+                    let amount : u32 = cmd.value_of("amount").unwrap().parse().unwrap();
+                    let result = client.send(key::PublicKey::from_str(&pubkey).unwrap(), amount).call().unwrap();
+                    println!("{}", serde_json::to_string_pretty(&result)?);
+                }
+            },
+            Err(e) => {
+                println!("{}", e);
+            }
+        }
+    }
+}

@@ -1,8 +1,7 @@
-use jsonrpc_http_server::jsonrpc_core::{IoHandler, Value, Params};
+use jsonrpc_http_server::jsonrpc_core::{IoHandler};
 use jsonrpc_http_server::{ServerBuilder};
 
-use jsonrpc_core::{Error, Result};
-use jsonrpc_core::futures::future::{self, FutureResult};
+use jsonrpc_core::{Result};
 use jsonrpc_derive::rpc;
 
 use crate::crypto;
@@ -36,6 +35,9 @@ pub trait Rpc {
 	#[rpc(name = "balances")]
 	fn balances(&self) -> Result<HashMap<key::PublicKey, u32>>;
 
+	#[rpc(name = "getbalance")]
+	fn getbalance(&self, pubkey: key::PublicKey) -> Result<u32>;
+
 	#[rpc(name = "mempool")]
 	fn mempool(&self) -> Result<Vec<tx::SignedTransaction>>;
 
@@ -52,11 +54,12 @@ struct RpcImpl {
 
 impl RpcImpl {
 	fn new(node_ref: Arc<Mutex<node::Node>>) -> RpcImpl {
+		let opts = Options::default();
 		return RpcImpl {
 			node_ref,
-			db_blocks: DB::open_for_read_only(&Options::default(), node::BLOCKS_DB_PATH, false).unwrap(),
-            db_blocks_metadata: DB::open_for_read_only(&Options::default(), node::BLOCKS_METADATA_DB_PATH, false).unwrap(),
-            db_balances: DB::open_for_read_only(&Options::default(), node::BALANCES_DB_PATH, false).unwrap()
+			db_blocks: DB::open_for_read_only(&opts, node::BLOCKS_DB_PATH, true).unwrap(),
+            db_blocks_metadata: DB::open_for_read_only(&opts, node::BLOCKS_METADATA_DB_PATH, true).unwrap(),
+            db_balances: DB::open_for_read_only(&opts, node::BALANCES_DB_PATH, true).unwrap()
 		}
 	}
 }
@@ -86,6 +89,11 @@ impl Rpc for RpcImpl {
 		let node = self.node_ref.lock().unwrap();
 		let blockheight = node.get_latest_block_number().unwrap();
 		return Ok(blockheight);
+	}
+
+	fn getbalance(&self, pubkey: key::PublicKey) -> Result<u32> {
+		let balance = storage::get_balance(&self.db_balances, pubkey).unwrap();
+		return Ok(balance.unwrap_or(0));
 	}
 
 	fn balances(&self) -> Result<HashMap<key::PublicKey, u32>> {

@@ -829,6 +829,7 @@ checksum = "2773fa94a2a1fd51efb89a8f45b8861023dbb415d18d3c9235ae9388d780f9ec"
 dependencies = [
  "failure",
  "futures",
+ "hyper 0.12.35",
  "jsonrpc-core 14.2.0",
  "jsonrpc-pubsub",
  "log 0.4.11",

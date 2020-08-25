@@ -162,6 +162,7 @@ impl Node {
     pub fn get_proposed_block (&mut self) -> Result<block::ProposedBlock, String> {
         let mut txs = vec![self.create_coinbase_tx()?];
         txs.extend(self.mempool.clone());
+        self.mempool = Vec::new(); // TODO: mempool should be preserved if block was not found
         let prev_block = self.get_latest_block().expect("Previous block does not exist").unwrap();
         return Ok(block::ProposedBlock {
             prev_block: prev_block.hash.clone(),
@@ -171,7 +172,6 @@ impl Node {
 
     pub fn receive_block (&mut self, block: block::Block) -> Result<(), String> {
         self.process_block(&block)?;
-        self.mempool = Vec::new();
         return Ok(());
     }
 
