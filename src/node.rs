@@ -11,9 +11,6 @@ use std::path::Path;
 
 pub static DIFFICULTY: usize = 3;
 pub static GENESIS_PREV_BLOCK_HASH: &str = "000000000000000000000000000000000000000000000000000000000000000";
-pub static BLOCKS_DB_PATH: &str = "data/blocks";
-pub static BLOCKS_METADATA_DB_PATH: &str = "data/blocksmetadata";
-pub static BALANCES_DB_PATH: &str = "data/balances";
 pub static WALLET_PATH: &str = "data/wallet.key";
 pub static DATA_DIR: &str = "data";
 
@@ -27,14 +24,14 @@ pub struct Node {
 }
 
 impl Node {
-    fn get_block_reward (&self, block_number: usize) -> u32 {
+    fn get_block_reward (&self, block_number: u32) -> u32 {
         let halving = block_number / 1000;
         if halving >= 10 { return 0 }
         return 512 >> halving;
     }
 
     fn create_coinbase_tx (&self) -> Result<tx::SignedTransaction, String> {
-        let latest_block_number = self.get_latest_block_number()?;
+        let latest_block_number = storage::get_latest_block_number(&self.db_blocks_metadata)?;
         let reward = self.get_block_reward(latest_block_number + 1);
         return Ok(tx::create_signed(&self.keypair, self.keypair.public_key, reward));
     }
@@ -49,20 +46,11 @@ impl Node {
 
     fn get_latest_block(&self) -> Result<Option<block::Block>, String> {
         let block_hash = match storage::get_latest_block_hash(&self.db_blocks_metadata)? {
-            Some(block_hash) => block_hash, // TODO: map?
+            Some(block_hash) => block_hash,
             None => return Ok(None)
         };
         let block = storage::get_block(&self.db_blocks, &block_hash)?;
         return Ok(block);
-    }
-
-    pub fn get_latest_block_number(&self) -> Result<usize, String>{ // TODO: why is block number usize?
-        let latest_block_hash = match storage::get_latest_block_hash(&self.db_blocks_metadata)? {
-            Some(hash) => hash,
-            None => return Ok(0)
-        };
-        let latest_block_number = storage::get_block_height(&self.db_blocks_metadata, &latest_block_hash)?.unwrap();
-        return Ok(latest_block_number);
     }
 
     fn verify_block(&self, block: &block::Block) -> Result <(), String> {
@@ -75,7 +63,7 @@ impl Node {
         let prev_block_hash = prev_block.map_or(String::from(GENESIS_PREV_BLOCK_HASH), |b| b.hash.clone());
         if block.prev_block != prev_block_hash { return Err(String::from("Block verification: Must reference previous block's hash")) }
 
-        let prev_block_number = self.get_latest_block_number()?;
+        let prev_block_number = storage::get_latest_block_number(&self.db_blocks_metadata)?;
 
         for (i, tx) in block.transactions.iter().enumerate() {
             if i == 0 { self.verify_coinbase_tx(&tx, prev_block_number + 1)? } else { self.verify_reg_tx(&tx)? };
@@ -91,7 +79,7 @@ impl Node {
         return Ok(());
     }
 
-    fn verify_coinbase_tx(&self, tx: &tx::SignedTransaction, block_number: usize) -> Result <(), String> {
+    fn verify_coinbase_tx(&self, tx: &tx::SignedTransaction, block_number: u32) -> Result <(), String> {
         self.verify_tx(&tx)?;
         if tx.transaction.amount != self.get_block_reward(block_number) { return Err(String::from("Transaction verification: Coinbase amount not valid")) }
         return Ok(());
@@ -122,7 +110,7 @@ impl Node {
     fn process_block(&mut self, block: &block::Block) -> Result<(), String> {
         self.verify_block(&block)?;
         self.process_block_transactions(&block)?;
-        let prev_block_number = self.get_latest_block_number()?;
+        let prev_block_number = storage::get_latest_block_number(&self.db_blocks_metadata)?;
         storage::add_block(&self.db_blocks, &block)?;
         storage::set_latest_block(&self.db_blocks_metadata, &block.hash, prev_block_number + 1)?;
         return Ok(());
@@ -180,9 +168,9 @@ impl Node {
         return Node {
             keypair: Node::get_keypair().expect("Could not load wallet"),
             mempool: Vec::new(),
-            db_blocks: DB::open_default(BLOCKS_DB_PATH).unwrap(),
-            db_blocks_metadata: DB::open_default(BLOCKS_METADATA_DB_PATH).unwrap(),
-            db_balances: DB::open_default(BALANCES_DB_PATH).unwrap()
+            db_blocks: storage::db::blocks(false),
+            db_blocks_metadata: storage::db::blocks_md(false),
+            db_balances: storage::db::balances(false)
         }
     }
 }

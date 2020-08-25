@@ -12,7 +12,6 @@ use crate::storage;
 use crypto::key;
 
 use std::collections::HashMap;
-use rocksdb::{DB, Options};
 use std::sync::{Arc, Mutex};
 
 #[rpc(server, client)]
@@ -30,7 +29,7 @@ pub trait Rpc {
 	fn getpubkey(&self) -> Result<String>;
 
 	#[rpc(name = "blockheight")]
-	fn blockheight(&self) -> Result<usize>;
+	fn blockheight(&self) -> Result<u32>;
 
 	#[rpc(name = "balances")]
 	fn balances(&self) -> Result<HashMap<key::PublicKey, u32>>;
@@ -40,26 +39,16 @@ pub trait Rpc {
 
 	#[rpc(name = "mempool")]
 	fn mempool(&self) -> Result<Vec<tx::SignedTransaction>>;
-
-	// #[rpc(name = "callAsync")]
-	// fn call(&self, a: u64) -> FutureResult<String, Error>;
 }
 
 struct RpcImpl {
 	node_ref: Arc<Mutex<node::Node>>,
-	pub db_blocks: DB,
-    pub db_blocks_metadata: DB,
-    pub db_balances: DB
 }
 
 impl RpcImpl {
 	fn new(node_ref: Arc<Mutex<node::Node>>) -> RpcImpl {
-		let opts = Options::default();
 		return RpcImpl {
-			node_ref,
-			db_blocks: DB::open_for_read_only(&opts, node::BLOCKS_DB_PATH, true).unwrap(),
-            db_blocks_metadata: DB::open_for_read_only(&opts, node::BLOCKS_METADATA_DB_PATH, true).unwrap(),
-            db_balances: DB::open_for_read_only(&opts, node::BALANCES_DB_PATH, true).unwrap()
+			node_ref
 		}
 	}
 }
@@ -85,19 +74,18 @@ impl Rpc for RpcImpl {
 		return Ok(node.keypair.public_key.to_string());
 	}
 
-	fn blockheight(&self) -> Result<usize> {
-		let node = self.node_ref.lock().unwrap();
-		let blockheight = node.get_latest_block_number().unwrap();
+	fn blockheight(&self) -> Result<u32> {
+		let blockheight = storage::get_latest_block_number(&storage::db::blocks_md(true)).unwrap();
 		return Ok(blockheight);
 	}
 
 	fn getbalance(&self, pubkey: key::PublicKey) -> Result<u32> {
-		let balance = storage::get_balance(&self.db_balances, pubkey).unwrap();
+		let balance = storage::get_balance(&storage::db::balances(true), pubkey).unwrap();
 		return Ok(balance.unwrap_or(0));
 	}
 
 	fn balances(&self) -> Result<HashMap<key::PublicKey, u32>> {
-		let balances = storage::get_balances(&self.db_balances).unwrap();
+		let balances = storage::get_balances(&storage::db::balances(true)).unwrap();
 		return Ok(balances);
 	}
 
@@ -105,11 +93,6 @@ impl Rpc for RpcImpl {
 		let node = self.node_ref.lock().unwrap();
 		return Ok(node.mempool.clone());
 	}
-
-
-	// fn call(&self, _: u64) -> FutureResult<String, Error> {
-	// 	future::ok("OK".to_owned()).into()
-	// }
 }
 
 pub fn run_server (node_ref: Arc<Mutex<node::Node>>) {

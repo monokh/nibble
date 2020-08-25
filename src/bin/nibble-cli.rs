@@ -12,12 +12,12 @@ use jsonrpc_client_http::HttpTransport;
 #[macro_use] extern crate jsonrpc_client_core;
 
 jsonrpc_client!(pub struct NibbleClient {
-    /// Returns the fizz-buzz string for the given number.
     pub fn newpubkey(&mut self) -> RpcRequest<String>;
     pub fn getpubkey(&mut self) -> RpcRequest<String>;
     pub fn send(&mut self, pubkey: key::PublicKey, amount: u32) -> RpcRequest<tx::SignedTransaction>;
-    pub fn blockheight(&mut self) -> RpcRequest<usize>;
+    pub fn blockheight(&mut self) -> RpcRequest<u32>;
     pub fn balances(&mut self) -> RpcRequest<HashMap<key::PublicKey, u32>>;
+    pub fn getbalance(&mut self, pubkey: key::PublicKey) -> RpcRequest<u32>;
     pub fn mempool(&mut self) -> RpcRequest<Vec<tx::SignedTransaction>>;
 });
 
@@ -37,6 +37,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .about("Returns the transactions in the mempool"))
     .subcommand(SubCommand::with_name("balances")
                 .about("Returns balances for each pubkey known by the node"))
+    .subcommand(SubCommand::with_name("getbalance")
+                .about("Return the balance of a pubkey")
+                .arg(Arg::with_name("pubkey")
+                    .required(true)
+                    .index(1))
+                    .about("Pubkey"))
+    .subcommand(SubCommand::with_name("blockheight")
+                .about("Get the current block height"))
     .subcommand(SubCommand::with_name("send")
                 .about("Send a transaction")
                 .arg(Arg::with_name("pubkey")
@@ -79,6 +87,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 if let Some(_) = matches.subcommand_matches("balances") {
                     let result = client.balances().call().unwrap();
+                    println!("{}", serde_json::to_string_pretty(&result)?);
+                }
+
+                if let Some(_) = matches.subcommand_matches("blockheight") {
+                    let result = client.blockheight().call().unwrap();
+                    println!("{}", result);
+                }
+
+                if let Some(cmd) = matches.subcommand_matches("getbalance") {
+                    let pubkey = cmd.value_of("pubkey").unwrap();
+                    let result = client.getbalance(key::PublicKey::from_str(&pubkey).unwrap()).call().unwrap();
                     println!("{}", serde_json::to_string_pretty(&result)?);
                 }
 

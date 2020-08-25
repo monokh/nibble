@@ -7,6 +7,34 @@ use serde_json;
 use std::collections::HashMap;
 use std::str::FromStr;
 
+pub mod db {
+     use rocksdb::{DB, Options};
+
+     static BLOCKS_DB_PATH: &str = "data/blocks";
+     static BLOCKS_METADATA_DB_PATH: &str = "data/blocksmetadata";
+     static BALANCES_DB_PATH: &str = "data/balances";
+
+     pub fn open(path: &str, read_only: bool) -> DB {
+          if read_only {
+               return DB::open_for_read_only(&Options::default(), path, true).unwrap();
+          } else {
+               return DB::open_default(path).unwrap();
+          }
+     }
+
+     pub fn blocks(read_only: bool) -> DB {
+          return open(BLOCKS_DB_PATH, read_only);
+     }
+
+     pub fn blocks_md(read_only: bool) -> DB {
+          return open(BLOCKS_METADATA_DB_PATH, read_only);
+     }
+
+     pub fn balances(read_only: bool) -> DB {
+          return open(BALANCES_DB_PATH, read_only);
+     }
+}
+
 pub fn add_block(db: &DB, block: &block::Block) -> Result<(), String> {
      let json = serde_json::to_string(block).map_err(|e| e.to_string())?;
      db.put(block.hash.clone(), json).map_err(|e| e.to_string())?;
@@ -23,7 +51,7 @@ pub fn get_block(db: &DB, block_hash: &String) -> Result<Option<block::Block>, S
      }
 }
 
-pub fn set_latest_block(db: &DB, block_hash: &String, height: usize) -> Result<(), String> {
+pub fn set_latest_block(db: &DB, block_hash: &String, height: u32) -> Result<(), String> {
      db.put(b"latest_block_hash", block_hash.clone()).map_err(|e| e.to_string())?;
      db.put(block_hash.clone(), height.to_string()).map_err(|e| e.to_string())?;
      return Ok(());
@@ -36,11 +64,11 @@ pub fn get_latest_block_hash(db: &DB) -> Result<Option<String>, String> {
      };
 }
 
-pub fn get_block_height(db: &DB, block_hash: &String) -> Result <Option<usize>, String> {
+pub fn get_block_height(db: &DB, block_hash: &String) -> Result <Option<u32>, String> {
      match db.get(block_hash.clone())? {
           Some(height) => {
                let height_s = String::from_utf8(height).map_err(|e| e.to_string())?;
-               let height : usize = height_s.parse().unwrap();
+               let height : u32 = height_s.parse().unwrap();
                return Ok(Some(height));
           },
           None => return Ok(None),
@@ -75,4 +103,13 @@ pub fn get_balances(db: &DB) -> Result <HashMap<key::PublicKey, u32>, String> {
           iter.next();
      }
      return Ok(balances);
+}
+
+pub fn get_latest_block_number(db: &DB) -> Result<u32, String>{
+     let latest_block_hash = match get_latest_block_hash(&db)? {
+         Some(hash) => hash,
+         None => return Ok(0)
+     };
+     let latest_block_number = get_block_height(&db, &latest_block_hash)?.unwrap();
+     return Ok(latest_block_number);
 }
