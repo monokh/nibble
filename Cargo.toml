@@ -7,7 +7,10 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+regex = "1"
 hex = "0.4.2"
+toml = "0.5.6"
+config = "0.10.1"
 sha2 = "0.9.1"
 generic-array = "0.14.2"
 typenum = "1.12.0"

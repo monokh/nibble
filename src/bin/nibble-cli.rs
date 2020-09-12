@@ -21,14 +21,20 @@ jsonrpc_client!(pub struct NibbleClient {
     pub fn mempool(&mut self) -> RpcRequest<Vec<tx::SignedTransaction>>;
 });
 
-static RPC_SERVER: &str = "http://localhost:1337";
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = App::new("Nibble")
     .version("1.0")
     .author("monokh")
     .about("Bitcoin")
+    .arg(Arg::with_name("rpc-url")
+        .help("RPC Url to connect to")
+        .short("rpc")
+        .long("rpc-url")
+        .value_name("RPC PORT")
+        .default_value("http://localhost:1337")
+        .global(true)
+    )
     .subcommand(SubCommand::with_name("getpubkey")
                 .about("Get node's public key"))
     .subcommand(SubCommand::with_name("newpubkey")
@@ -56,8 +62,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .index(2))
                     .about("Amount to send"));
 
+    let matches = cli.clone().get_matches();
+    let rpc_url = matches.value_of("rpc-url").unwrap();
+
     let transport = HttpTransport::new().standalone().unwrap();
-    let transport_handle = transport.handle(&RPC_SERVER).unwrap();
+    let transport_handle = transport.handle(&rpc_url).unwrap();
     let mut client = NibbleClient::new(transport_handle);
 
     loop {

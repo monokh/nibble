@@ -95,12 +95,12 @@ impl Rpc for RpcImpl {
 	}
 }
 
-pub fn run_server (node_ref: Arc<Mutex<node::Node>>) {
+pub fn run_server (node_ref: Arc<Mutex<node::Node>>, rpc_port: String) {
     let mut io = IoHandler::new();
     let rpc = RpcImpl::new(node_ref);
     io.extend_with(rpc.to_delegate());
 
-    let rpc_path = "127.0.0.1:1337";
+    let rpc_path = format!("127.0.0.1:{}", rpc_port);
 
 	let server = ServerBuilder::new(io)
 		.threads(3)

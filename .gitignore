@@ -1,2 +1,4 @@
 /target
 data
+*.config.toml
+*_data/

@@ -9,16 +9,19 @@ use std::str::FromStr;
 
 pub mod db {
      use rocksdb::{DB, Options};
+     use crate::settings;
 
-     static BLOCKS_DB_PATH: &str = "data/blocks";
-     static BLOCKS_METADATA_DB_PATH: &str = "data/blocksmetadata";
-     static BALANCES_DB_PATH: &str = "data/balances";
+     static BLOCKS_DB_PATH: &str = "/blocks";
+     static BLOCKS_METADATA_DB_PATH: &str = "/blocksmetadata";
+     static BALANCES_DB_PATH: &str = "/balances";
 
      pub fn open(path: &str, read_only: bool) -> DB {
+          let config = settings::Settings::new().unwrap();
+          let full_path = format!("{}{}", config.data_dir, path);
           if read_only {
-               return DB::open_for_read_only(&Options::default(), path, true).unwrap();
+               return DB::open_for_read_only(&Options::default(), full_path, true).unwrap();
           } else {
-               return DB::open_default(path).unwrap();
+               return DB::open_default(full_path).unwrap();
           }
      }
 
@@ -64,7 +67,7 @@ pub fn get_latest_block_hash(db: &DB) -> Result<Option<String>, String> {
      };
 }
 
-pub fn get_block_height(db: &DB, block_hash: &String) -> Result <Option<u32>, String> {
+pub fn get_block_height(db: &DB, block_hash: &String) -> Result <Option<u32>, String> { // TODO: can String errors be dyn box?
      match db.get(block_hash.clone())? {
           Some(height) => {
                let height_s = String::from_utf8(height).map_err(|e| e.to_string())?;
@@ -103,6 +106,27 @@ pub fn get_balances(db: &DB) -> Result <HashMap<key::PublicKey, u32>, String> {
           iter.next();
      }
      return Ok(balances);
+}
+
+pub fn get_block_hashes(db: &DB) -> Result <Vec<String>, String> {
+     let mut blocks = Vec::new();
+     let mut iter = db.raw_iterator();
+     iter.seek_to_first();
+     while iter.valid() {
+          let block_hash = String::from_utf8(iter.key().unwrap().to_vec()).map_err(|e| e.to_string())?;
+          if block_hash != "latest_block_hash" {
+               let block_number_s = String::from_utf8(iter.value().unwrap().to_vec()).map_err(|e| e.to_string())?;
+               let block_number : u32 = block_number_s.parse().unwrap();
+               blocks.push((block_number, block_hash));
+          }
+          iter.next();
+     }
+
+     blocks.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+
+     let block_hashes = blocks.iter().map(|x| x.1.clone()).collect();
+
+     return Ok(block_hashes);
 }
 
 pub fn get_latest_block_number(db: &DB) -> Result<u32, String>{

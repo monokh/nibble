@@ -1,3 +1,4 @@
+use crate::settings;
 use crate::block;
 use crate::tx;
 use crate::crypto;
@@ -8,11 +9,11 @@ use rocksdb::{DB};
 use std::fs;
 use std::error::Error;
 use std::path::Path;
+use std::sync::mpsc;
 
-pub static DIFFICULTY: usize = 3;
+
+pub static DIFFICULTY: usize = 5;
 pub static GENESIS_PREV_BLOCK_HASH: &str = "000000000000000000000000000000000000000000000000000000000000000";
-pub static WALLET_PATH: &str = "data/wallet.key";
-pub static DATA_DIR: &str = "data";
 
 pub struct Node {
     pub mempool: Vec<tx::SignedTransaction>,
@@ -21,6 +22,9 @@ pub struct Node {
     pub db_blocks: DB,
     pub db_blocks_metadata: DB,
     pub db_balances: DB,
+
+    block_tx: mpsc::Sender<block::Block>,
+    transaction_tx: mpsc::Sender<tx::SignedTransaction>
 }
 
 impl Node {
@@ -103,11 +107,16 @@ impl Node {
             let receiver_balance = storage::get_balance(&self.db_balances, tx.transaction.to)?.unwrap_or(0);
             let new_receiver_balance = receiver_balance + tx.transaction.amount;
             storage::set_balance(&self.db_balances, tx.transaction.to, new_receiver_balance)?; // Add balance
+            // Remove processed tx from mempool
+            let mempool_position = self.mempool.iter().position(|mempool_tx| *mempool_tx.to_string() == tx.to_string()); // TODO: not very efficient, hashmap better suits
+            if let Some(mempool_position) = mempool_position {
+                self.mempool.remove(mempool_position);
+            }
         }
         return Ok(());
     }
 
-    fn process_block(&mut self, block: &block::Block) -> Result<(), String> {
+    pub fn process_block(&mut self, block: &block::Block) -> Result<(), String> {
         self.verify_block(&block)?;
         self.process_block_transactions(&block)?;
         let prev_block_number = storage::get_latest_block_number(&self.db_blocks_metadata)?;
@@ -116,61 +125,70 @@ impl Node {
         return Ok(());
     }
 
-    pub fn send_transaction (&mut self, public_key: key::PublicKey, amount: u32) -> Result<tx::SignedTransaction, String> {
-        let tx = tx::create_signed(&self.keypair, public_key, amount);
+    pub fn new_transaction (&mut self, tx: &tx::SignedTransaction) -> Result<(), String> {
         self.verify_reg_tx(&tx)?;
         self.mempool.push(tx.clone());
+        Ok(())
+    }
+
+    pub fn send_transaction (&mut self, public_key: key::PublicKey, amount: u32) -> Result<tx::SignedTransaction, String> {
+        let tx = tx::create_signed(&self.keypair, public_key, amount);
+        self.new_transaction(&tx)?;
+        self.transaction_tx.send(tx.clone()).unwrap();
         return Ok(tx);
     }
 
-    pub fn get_keypair () -> Result<crypto::KeyPair, Box<dyn Error>> {
-        if Path::new(WALLET_PATH).exists() {
-            let key = fs::read_to_string(WALLET_PATH)?;
+    pub fn get_keypair (data_dir: String) -> Result<crypto::KeyPair, Box<dyn Error>> {
+        let wallet_path = format!("{}/wallet.key", data_dir);
+        if Path::new(&wallet_path).exists() {
+            let key = fs::read_to_string(wallet_path)?;
             return Ok(crypto::KeyPair::from(key)?);
         }
 
         let keypair = crypto::KeyPair::new();
-        fs::write(WALLET_PATH, keypair.private_key.to_string())?;
+        fs::write(&wallet_path, keypair.private_key.to_string())?;
         return Ok(keypair);
     }
 
-    pub fn start (&mut self) -> Result<block::Block, String> {
-        let latest_block = match self.get_latest_block()? {
-            Some(latest_block) => latest_block,
-            None => {
-                let unmined_genesis_block = self.make_genesis_block()?;
-                let genesis_block = unmined_genesis_block.mine(DIFFICULTY);
-                self.process_block(&genesis_block)?;
-                genesis_block
-            }
-        };
-        return Ok(latest_block);
+    pub fn start (&mut self) -> Result<Option<block::Block>, String> {
+        return self.get_latest_block();
     }
 
     pub fn get_proposed_block (&mut self) -> Result<block::ProposedBlock, String> {
-        let mut txs = vec![self.create_coinbase_tx()?];
-        txs.extend(self.mempool.clone());
-        self.mempool = Vec::new(); // TODO: mempool should be preserved if block was not found
-        let prev_block = self.get_latest_block().expect("Previous block does not exist").unwrap();
-        return Ok(block::ProposedBlock {
-            prev_block: prev_block.hash.clone(),
-            transactions: txs,
-        });
+        let prev_block = self.get_latest_block().expect("Previous block does not exist");
+        return match prev_block {
+            Some(prev_block) => {
+                let mut txs = vec![self.create_coinbase_tx()?];
+                txs.extend(self.mempool.clone());
+                Ok(block::ProposedBlock {
+                    prev_block: prev_block.hash.clone(),
+                    transactions: txs,
+                })
+            },
+            None => {
+                println!("Proposing genesis block");
+                Ok(self.make_genesis_block()?)
+            }
+        }
     }
 
     pub fn receive_block (&mut self, block: block::Block) -> Result<(), String> {
         self.process_block(&block)?;
+        self.block_tx.send(block).unwrap();
         return Ok(());
     }
 
-    pub fn new () -> Node {
-        fs::create_dir_all(DATA_DIR).expect("Could not create data dir");
+    pub fn new (block_tx: mpsc::Sender<block::Block>, transaction_tx: mpsc::Sender<tx::SignedTransaction>) -> Node {
+        let config = settings::Settings::new().unwrap();
+        fs::create_dir_all(config.data_dir.clone()).expect("Could not create data dir");
         return Node {
-            keypair: Node::get_keypair().expect("Could not load wallet"),
+            keypair: Node::get_keypair(config.data_dir).expect("Could not load wallet"),
             mempool: Vec::new(),
             db_blocks: storage::db::blocks(false),
             db_blocks_metadata: storage::db::blocks_md(false),
-            db_balances: storage::db::balances(false)
+            db_balances: storage::db::balances(false),
+            block_tx,
+            transaction_tx
         }
     }
 }
