@@ -1,4 +1,5 @@
 use nibble::tx;
+use nibble::block;
 use nibble::crypto::key;
 
 use clap::{Arg, App, SubCommand};
@@ -18,6 +19,7 @@ jsonrpc_client!(pub struct NibbleClient {
     pub fn blockheight(&mut self) -> RpcRequest<u32>;
     pub fn balances(&mut self) -> RpcRequest<HashMap<key::PublicKey, u32>>;
     pub fn getbalance(&mut self, pubkey: key::PublicKey) -> RpcRequest<u32>;
+    pub fn getblock(&mut self, block_number: u32) -> RpcRequest<block::Block>;
     pub fn mempool(&mut self) -> RpcRequest<Vec<tx::SignedTransaction>>;
 });
 
@@ -31,7 +33,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .help("RPC Url to connect to")
         .short("rpc")
         .long("rpc-url")
-        .value_name("RPC PORT")
+        .value_name("RPC URL")
         .default_value("http://localhost:1337")
         .global(true)
     )
@@ -49,6 +51,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .required(true)
                     .index(1))
                     .about("Pubkey"))
+    .subcommand(SubCommand::with_name("getblock")
+                .about("Return the block at number")
+                .arg(Arg::with_name("blocknumber")
+                    .required(true)
+                    .index(1))
+                    .about("Block Number"))
     .subcommand(SubCommand::with_name("blockheight")
                 .about("Get the current block height"))
     .subcommand(SubCommand::with_name("send")
@@ -107,6 +115,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if let Some(cmd) = matches.subcommand_matches("getbalance") {
                     let pubkey = cmd.value_of("pubkey").unwrap();
                     let result = client.getbalance(key::PublicKey::from_str(&pubkey).unwrap()).call().unwrap();
+                    println!("{}", serde_json::to_string_pretty(&result)?);
+                }
+
+                if let Some(cmd) = matches.subcommand_matches("getblock") {
+                    let block_number: u32 = cmd.value_of("blocknumber").unwrap().parse().unwrap();
+                    let result = client.getblock(block_number).call().unwrap();
                     println!("{}", serde_json::to_string_pretty(&result)?);
                 }
 

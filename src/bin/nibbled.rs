@@ -4,6 +4,7 @@ use nibble::rpc;
 use nibble::p2p;
 use nibble::settings;
 
+use colored::*;
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc;
 use std::thread;
@@ -30,9 +31,8 @@ fn main() -> std::io::Result<()> {
     let node_ref = Arc::new(Mutex::new(node));
     {
         let mut node_inst = node_ref.lock().unwrap();
-        let latest_block = node_inst.start().expect("Start failed");
-        println!("Latest Block: {:#?}", latest_block);
-        println!("Your Public Key: {}", node_inst.keypair.public_key);
+        node_inst.start().expect("Start failed");
+        println!("{}", format!("Your Public Key: {}", node_inst.keypair.public_key).yellow());
     }
 
     let rpc_node_ref = node_ref.clone();

@@ -2,6 +2,7 @@ use crate::node;
 use crate::block;
 use crate::crypto;
 
+use colored::*;
 use std::time;
 use std::sync::mpsc;
 use std::thread;
@@ -49,6 +50,7 @@ pub fn start_miner(node_ref: Arc<Mutex<node::Node>>, interrupt_rx: mpsc::Receive
         if let Ok(block) = in_rx.try_recv() {
             let mut node = node_ref.lock().unwrap();
             if let Some(block) = block {
+                println!("{} {}", "Mined Block:".green(), block.hash);
                 node.receive_block(block).unwrap();
             }
             let proposed_block = node.get_proposed_block().unwrap();

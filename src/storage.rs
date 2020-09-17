@@ -57,6 +57,7 @@ pub fn get_block(db: &DB, block_hash: &String) -> Result<Option<block::Block>, S
 pub fn set_latest_block(db: &DB, block_hash: &String, height: u32) -> Result<(), String> {
      db.put(b"latest_block_hash", block_hash.clone()).map_err(|e| e.to_string())?;
      db.put(block_hash.clone(), height.to_string()).map_err(|e| e.to_string())?;
+     db.put(height.to_string(), block_hash.clone()).map_err(|e| e.to_string())?;
      return Ok(());
 }
 
@@ -67,12 +68,22 @@ pub fn get_latest_block_hash(db: &DB) -> Result<Option<String>, String> {
      };
 }
 
-pub fn get_block_height(db: &DB, block_hash: &String) -> Result <Option<u32>, String> { // TODO: can String errors be dyn box?
+pub fn get_block_height(db: &DB, block_hash: &String) -> Result <Option<u32>, String> {
      match db.get(block_hash.clone())? {
           Some(height) => {
                let height_s = String::from_utf8(height).map_err(|e| e.to_string())?;
                let height : u32 = height_s.parse().unwrap();
                return Ok(Some(height));
+          },
+          None => return Ok(None),
+     }
+}
+
+pub fn get_block_hash(db: &DB, block_number: u32) -> Result <Option<String>, String> {
+     match db.get(block_number.to_string())? {
+          Some(block_hash) => {
+               let block_hash_s = String::from_utf8(block_hash).map_err(|e| e.to_string())?;
+               return Ok(Some(block_hash_s));
           },
           None => return Ok(None),
      }

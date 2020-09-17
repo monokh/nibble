@@ -6,11 +6,12 @@ use jsonrpc_derive::rpc;
 
 use crate::crypto;
 use crate::node;
+use crate::block;
 use crate::tx;
 use crate::storage;
 
 use crypto::key;
-
+use colored::*;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -30,6 +31,9 @@ pub trait Rpc {
 
 	#[rpc(name = "blockheight")]
 	fn blockheight(&self) -> Result<u32>;
+
+	#[rpc(name = "getblock")]
+	fn getblock(&self, block_number: u32) -> Result<block::Block>;
 
 	#[rpc(name = "balances")]
 	fn balances(&self) -> Result<HashMap<key::PublicKey, u32>>;
@@ -79,6 +83,12 @@ impl Rpc for RpcImpl {
 		return Ok(blockheight);
 	}
 
+	fn getblock(&self, block_number: u32) -> Result<block::Block> {
+		let block_hash = storage::get_block_hash(&storage::db::blocks_md(true), block_number).unwrap().unwrap();
+		let block = storage::get_block(&storage::db::blocks(true), &block_hash).unwrap().unwrap();
+		return Ok(block)
+	}
+
 	fn getbalance(&self, pubkey: key::PublicKey) -> Result<u32> {
 		let balance = storage::get_balance(&storage::db::balances(true), pubkey).unwrap();
 		return Ok(balance.unwrap_or(0));
@@ -95,19 +105,19 @@ impl Rpc for RpcImpl {
 	}
 }
 
-pub fn run_server (node_ref: Arc<Mutex<node::Node>>, rpc_port: String) {
+pub fn run_server (node_ref: Arc<Mutex<node::Node>>, port: u32) {
     let mut io = IoHandler::new();
     let rpc = RpcImpl::new(node_ref);
     io.extend_with(rpc.to_delegate());
 
-    let rpc_path = format!("127.0.0.1:{}", rpc_port);
+    let rpc_path = format!("127.0.0.1:{}", port);
 
 	let server = ServerBuilder::new(io)
 		.threads(3)
 		.start_http(&rpc_path.parse().unwrap())
 		.unwrap();
 
-    println!("{}", format!("Running RPC Server on {}", rpc_path));
+    println!("{} Listening on {}", "RPC:".green(), rpc_path);
 
 	server.wait();
 }

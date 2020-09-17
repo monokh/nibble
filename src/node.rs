@@ -6,13 +6,13 @@ use crate::storage;
 
 use crypto::key;
 use rocksdb::{DB};
+use colored::*;
 use std::fs;
 use std::error::Error;
 use std::path::Path;
 use std::sync::mpsc;
 
-
-pub static DIFFICULTY: usize = 5;
+pub static DIFFICULTY: usize = 5; // TODO: Difficulty adjustment
 pub static GENESIS_PREV_BLOCK_HASH: &str = "000000000000000000000000000000000000000000000000000000000000000";
 
 pub struct Node {
@@ -126,6 +126,11 @@ impl Node {
     }
 
     pub fn new_transaction (&mut self, tx: &tx::SignedTransaction) -> Result<(), String> {
+        println!("{} {}={} {}={} {}={} ",
+            "New Transaction:".green(),
+            "amount".yellow(), tx.transaction.amount,
+            "from".yellow(), tx.transaction.from.to_string(), 
+            "to".yellow(), tx.transaction.to.to_string());
         self.verify_reg_tx(&tx)?;
         self.mempool.push(tx.clone());
         Ok(())
@@ -166,7 +171,7 @@ impl Node {
                 })
             },
             None => {
-                println!("Proposing genesis block");
+                println!("Initiating Genesis Block");
                 Ok(self.make_genesis_block()?)
             }
         }
