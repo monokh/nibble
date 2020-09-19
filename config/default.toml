@@ -1,4 +1,5 @@
 rpc_port = 1337
 tcp_port = 1338
+web_port = 1339
 data_dir = "data"
 miner_enabled = false

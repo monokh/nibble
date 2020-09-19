@@ -12,7 +12,7 @@ use std::error::Error;
 use std::path::Path;
 use std::sync::mpsc;
 
-pub static DIFFICULTY: usize = 5; // TODO: Difficulty adjustment
+pub static DIFFICULTY: usize = 2; // TODO: Difficulty adjustment
 pub static GENESIS_PREV_BLOCK_HASH: &str = "000000000000000000000000000000000000000000000000000000000000000";
 
 pub struct Node {

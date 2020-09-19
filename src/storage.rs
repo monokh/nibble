@@ -127,8 +127,10 @@ pub fn get_block_hashes(db: &DB) -> Result <Vec<String>, String> {
           let block_hash = String::from_utf8(iter.key().unwrap().to_vec()).map_err(|e| e.to_string())?;
           if block_hash != "latest_block_hash" {
                let block_number_s = String::from_utf8(iter.value().unwrap().to_vec()).map_err(|e| e.to_string())?;
-               let block_number : u32 = block_number_s.parse().unwrap();
-               blocks.push((block_number, block_hash));
+               match block_number_s.parse::<u32>() {
+                    Ok(block_number) => blocks.push((block_number, block_hash)),
+                    Err(_e) => ()
+               }
           }
           iter.next();
      }

@@ -35,6 +35,8 @@ pub fn start_miner(node_ref: Arc<Mutex<node::Node>>, interrupt_rx: mpsc::Receive
                         in_tx.send(Some(mined_block)).unwrap();
                         break;
                     }
+                    // Artificially limit hash rate to avoid unnecessary cpu usage
+                    thread::sleep(time::Duration::from_millis(60));
                     nonce += 1;
                 }
             }

@@ -2,6 +2,7 @@ use nibble::node::Node;
 use nibble::miner;
 use nibble::rpc;
 use nibble::p2p;
+use nibble::web;
 use nibble::settings;
 
 use colored::*;
@@ -46,8 +47,9 @@ fn main() -> std::io::Result<()> {
     let server_p2p_data_ref = p2p_data_ref.clone();
     let host_addr = format!("127.0.0.1:{}", tcp_port); // TODO: real address
     let run_server_host_addr = host_addr.clone();
+    let p2p_miner_interrupt_tx = miner_interrupt_tx.clone();
     let p2p_thread = thread::spawn(move || {
-        p2p::run_server(p2p_node_ref, server_p2p_data_ref, run_server_host_addr, miner_interrupt_tx).unwrap();
+        p2p::run_server(p2p_node_ref, server_p2p_data_ref, run_server_host_addr, p2p_miner_interrupt_tx).unwrap();
     });
 
     let p2p_node_ref = node_ref.clone();
@@ -60,7 +62,12 @@ fn main() -> std::io::Result<()> {
 
     let p2p_data_ref = p2p_data_ref.clone();
     let init_host_addr = host_addr.clone();
-    p2p::init(p2p_node_ref, p2p_data_ref, init_host_addr, config.bootstrap_node).unwrap();
+    p2p::init(p2p_node_ref, p2p_data_ref, miner_interrupt_tx, init_host_addr, config.bootstrap_node).unwrap();
+
+    let web_port = config.web_port.clone();
+    let web_thread = thread::spawn(move || {
+        web::run_server(web_port)
+    });
 
     rpc_thread.join().unwrap();
     p2p_thread.join().unwrap();
@@ -69,6 +76,7 @@ fn main() -> std::io::Result<()> {
         Some(thread) => thread.join().unwrap(),
         None => (),
     }
+    web_thread.join().unwrap();
 
     return Ok(());
 }

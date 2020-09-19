@@ -4,8 +4,9 @@ use std::env;
 
 #[derive(Deserialize)]
 pub struct Settings {
-    pub rpc_port: String,
-    pub tcp_port: String,
+    pub rpc_port: u32,
+    pub tcp_port: u32,
+    pub web_port: u32,
     pub data_dir: String,
     pub miner_enabled: bool,
     pub bootstrap_node: Option<String>,

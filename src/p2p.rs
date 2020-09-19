@@ -64,15 +64,15 @@ fn handle_new_transaction (node_ref: Arc<Mutex<node::Node>>, tx: String) -> Resu
     return Ok(String::from("OK"));
 }
 
-fn handle_new_peer (node_ref: Arc<Mutex<node::Node>>, p2p_data_ref: Arc<Mutex<P2PData>>, peer: String) -> Result <String, Box<dyn error::Error>> {
-    add_peer(node_ref, p2p_data_ref.clone(), peer.clone())?;
+fn handle_new_peer (node_ref: Arc<Mutex<node::Node>>, p2p_data_ref: Arc<Mutex<P2PData>>, miner_interrupt_tx: mpsc::Sender<()>, peer: String) -> Result <String, Box<dyn error::Error>> {
+    add_peer(node_ref, p2p_data_ref.clone(), miner_interrupt_tx, peer.clone())?;
     let p2p_data = p2p_data_ref.lock().unwrap();
     let resp_peers: Vec<String> = p2p_data.peers.clone().into_iter().filter(|x| *x != peer).collect();
     return Ok(serde_json::to_string(&resp_peers)?);
 }
 
 fn handle_connection(node_ref: Arc<Mutex<node::Node>>, p2p_data_ref: Arc<Mutex<P2PData>>, miner_interrupt_tx: mpsc::Sender<()>, mut stream: TcpStream) -> Result<(), Box<dyn error::Error>> {
-    let mut buffer = [0; 2048];
+    let mut buffer = [0; 100000];
 
     stream.read(&mut buffer)?;
 
@@ -98,7 +98,7 @@ fn handle_connection(node_ref: Arc<Mutex<node::Node>>, p2p_data_ref: Arc<Mutex<P
         let re = Regex::new(&format!(r"{}\((?P<host>.*?)\)", MESSAGE_NEW_PEER))?;
         let caps = re.captures(msg).unwrap();
         let host = &caps["host"];
-        handle_new_peer(node_ref, p2p_data_ref, host.to_string())?
+        handle_new_peer(node_ref, p2p_data_ref, miner_interrupt_tx, host.to_string())?
     } else if msg.starts_with(MESSAGE_NEW_TRANSACTION) {
         let re = Regex::new(&format!(r"{}\((?P<tx>.*?)\)", MESSAGE_NEW_TRANSACTION))?;
         let caps = re.captures(msg).unwrap();
@@ -125,7 +125,7 @@ fn send (peer: &String, req: String, data: Option<String>) -> Result<String, Box
     };
 
     stream.write(&msg.as_bytes())?;
-    let mut buffer = [0; 4096];
+    let mut buffer = [0; 100000];
     stream.read(&mut buffer)?;
 
     let response_raw = String::from_utf8_lossy(&buffer[..]);
@@ -153,28 +153,28 @@ pub fn publish_tx(p2p_data_ref: Arc<Mutex<P2PData>>, tx: tx::SignedTransaction) 
     publish(p2p_data_ref, MESSAGE_NEW_TRANSACTION.to_string(), serde_json::to_string(&tx)?)
 }
 
-pub fn add_peer(node_ref: Arc<Mutex<node::Node>>, p2p_data_ref: Arc<Mutex<P2PData>>, addr: String) -> Result<(), Box<dyn error::Error>> {
+pub fn add_peer(node_ref: Arc<Mutex<node::Node>>, p2p_data_ref: Arc<Mutex<P2PData>>, miner_interrupt_tx: mpsc::Sender<()>, addr: String) -> Result<(), Box<dyn error::Error>> {
     let mut p2p_data = p2p_data_ref.lock().unwrap();
     if !p2p_data.peers.contains(&addr) {
         println!("{} {}", "New Peer:".green(), addr);
         p2p_data.peers.push(addr.clone());
-        check_peer_blocks(node_ref, addr.clone())?; // Doesn't seem right that adding new peer needs to immediately check blocks
+        check_peer_blocks(node_ref, miner_interrupt_tx, addr.clone())?; // Doesn't seem right that adding new peer needs to immediately check blocks
     }
     Ok(())
 }
 
-pub fn init_node_list(node_ref: Arc<Mutex<node::Node>>, p2p_data_ref: Arc<Mutex<P2PData>>, bootstrap_node: String, self_addr: String) -> Result<(), Box<dyn error::Error>> {
-    add_peer(node_ref.clone(), p2p_data_ref.clone(), bootstrap_node.clone())?;
+pub fn init_node_list(node_ref: Arc<Mutex<node::Node>>, p2p_data_ref: Arc<Mutex<P2PData>>, miner_interrupt_tx: mpsc::Sender<()>, bootstrap_node: String, self_addr: String) -> Result<(), Box<dyn error::Error>> {
+    add_peer(node_ref.clone(), p2p_data_ref.clone(), miner_interrupt_tx.clone(), bootstrap_node.clone())?;
     let resp = send(&bootstrap_node, MESSAGE_NEW_PEER.to_string(), Some(self_addr.clone()))?; // TODO: proper address
     let peers: Vec<String> = serde_json::from_str(&resp)?;
     for peer in peers {
-        add_peer(node_ref.clone(), p2p_data_ref.clone(), peer.to_string())?;
+        add_peer(node_ref.clone(), p2p_data_ref.clone(), miner_interrupt_tx.clone(), peer.to_string())?;
         send(&peer, MESSAGE_NEW_PEER.to_string(), Some(self_addr.clone()))?;
     }
     Ok(())
 }
 
-pub fn check_peer_blocks(node_ref: Arc<Mutex<node::Node>>, peer: String) -> Result<(), Box<dyn error::Error>> {
+pub fn check_peer_blocks(node_ref: Arc<Mutex<node::Node>>, miner_interrupt_tx: mpsc::Sender<()>, peer: String) -> Result<(), Box<dyn error::Error>> {
     let blocks_resp = send(&peer, MESSAGE_GET_BLOCKS.to_string(), None)?;
     let block_hashes: Vec<String> = serde_json::from_str(&blocks_resp)?;
 
@@ -196,21 +196,24 @@ pub fn check_peer_blocks(node_ref: Arc<Mutex<node::Node>>, peer: String) -> Resu
         let block: block::Block = serde_json::from_str(&block_raw)?;
         let mut node = node_ref.lock().unwrap();
         node.process_block(&block)?;
+        miner_interrupt_tx.send(()).unwrap();
     }
 
     Ok(())
 }
 
-pub fn init(node_ref: Arc<Mutex<node::Node>>, p2p_data_ref: Arc<Mutex<P2PData>>,  host_addr: String, bootstrap_node: Option<String>) -> Result<(), Box<dyn error::Error>> {
+pub fn init(node_ref: Arc<Mutex<node::Node>>, p2p_data_ref: Arc<Mutex<P2PData>>, miner_interrupt_tx: mpsc::Sender<()>, host_addr: String, bootstrap_node: Option<String>) -> Result<(), Box<dyn error::Error>> {
     match bootstrap_node {
         Some(bootstrap_node) => {
-            init_node_list(node_ref.clone(), p2p_data_ref.clone(), bootstrap_node, host_addr)?;
+            init_node_list(node_ref.clone(), p2p_data_ref.clone(), miner_interrupt_tx, bootstrap_node, host_addr)?;
         },
         _ => ()
     }
 
     Ok(())
 }
+
+// TODO: get all args into struct (node_ref, p2p_data_ref ....) to cleanup
 
 pub fn run_server(node_ref: Arc<Mutex<node::Node>>, p2p_data_ref: Arc<Mutex<P2PData>>, host_addr: String, miner_interrupt_tx: mpsc::Sender<()>) -> Result<(), Box<dyn error::Error>> {
     let listener = TcpListener::bind(&host_addr)?;
