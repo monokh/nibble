@@ -66,7 +66,7 @@
     <h2>Wallet</h2>
     <div class="grid">
         <div>Balance:</div><div>{#await balance then balance}<strong>{balance} Nibble </strong>{/await}</div>
-        <div>Public Key:</div><div>{#await pubKey then pubKey}<input type="text" style="width: 170px;" value={pubKey} />{/await} <button on:click={copyPubKey}>Copy</button></div>
+        <div>Public Key:</div><div>{#await pubKey then pubKey}<input type="text" readonly style="width: 170px;" value={pubKey} />{/await} <button on:click={copyPubKey}>Copy</button></div>
     </div>
     <hr />
     <h2>Send</h2>
@@ -76,7 +76,7 @@
     </div>
     <hr />
     <h2>Random Public Key</h2>
-    <div>{#await randomPubKey then randomPubKey}<input type="text" style="width: 170px;" value={randomPubKey} />{/await} <button on:click={copyRandomPubKey}>Copy</button> <button on:click={generateRandomPubKey}>New</button></div>
+    <div>{#await randomPubKey then randomPubKey}<input type="text" readonly style="width: 170px;" value={randomPubKey} />{/await} <button on:click={copyRandomPubKey}>Copy</button> <button on:click={generateRandomPubKey}>New</button></div>
     <hr />
     <h2>Get Balance</h2>
     <div class="grid">

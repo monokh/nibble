@@ -983,7 +983,7 @@ var app = (function () {
     	return block;
     }
 
-    // (69:62) <input type="text" style="width: 170px;" value={pubKey}
+    // (69:62) <input type="text" readonly style="width: 170px;" value={pubKey}
     function create_then_block_1(ctx) {
     	let input;
     	let input_value_value;
@@ -992,6 +992,7 @@ var app = (function () {
     		c: function create() {
     			input = element("input");
     			attr_dev(input, "type", "text");
+    			input.readOnly = true;
     			set_style(input, "width", "170px");
     			input.value = input_value_value = /*pubKey*/ ctx[4];
     			add_location(input, file, 68, 62, 1649);
@@ -1013,7 +1014,7 @@ var app = (function () {
     		block,
     		id: create_then_block_1.name,
     		type: "then",
-    		source: "(69:62) <input type=\\\"text\\\" style=\\\"width: 170px;\\\" value={pubKey}",
+    		source: "(69:62) <input type=\\\"text\\\" readonly style=\\\"width: 170px;\\\" value={pubKey}",
     		ctx
     	});
 
@@ -1050,7 +1051,7 @@ var app = (function () {
     	return block;
     }
 
-    // (79:48) <input type="text" style="width: 170px;" value={randomPubKey}
+    // (79:48) <input type="text" readonly style="width: 170px;" value={randomPubKey}
     function create_then_block(ctx) {
     	let input;
     	let input_value_value;
@@ -1059,9 +1060,10 @@ var app = (function () {
     		c: function create() {
     			input = element("input");
     			attr_dev(input, "type", "text");
+    			input.readOnly = true;
     			set_style(input, "width", "170px");
     			input.value = input_value_value = /*randomPubKey*/ ctx[6];
-    			add_location(input, file, 78, 48, 2198);
+    			add_location(input, file, 78, 48, 2207);
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, input, anchor);
@@ -1080,7 +1082,7 @@ var app = (function () {
     		block,
     		id: create_then_block.name,
     		type: "then",
-    		source: "(79:48) <input type=\\\"text\\\" style=\\\"width: 170px;\\\" value={randomPubKey}",
+    		source: "(79:48) <input type=\\\"text\\\" readonly style=\\\"width: 170px;\\\" value={randomPubKey}",
     		ctx
     	});
 
@@ -1306,41 +1308,41 @@ var app = (function () {
     			add_location(div0, file, 67, 8, 1485);
     			add_location(div1, file, 67, 27, 1504);
     			add_location(div2, file, 68, 8, 1595);
-    			add_location(button0, file, 68, 129, 1716);
+    			add_location(button0, file, 68, 138, 1725);
     			add_location(div3, file, 68, 30, 1617);
     			attr_dev(div4, "class", "grid svelte-yz4xpt");
     			add_location(div4, file, 66, 4, 1458);
-    			add_location(hr0, file, 70, 4, 1781);
-    			add_location(h21, file, 71, 4, 1792);
-    			add_location(div5, file, 73, 8, 1837);
+    			add_location(hr0, file, 70, 4, 1790);
+    			add_location(h21, file, 71, 4, 1801);
+    			add_location(div5, file, 73, 8, 1846);
     			attr_dev(input0, "type", "text");
     			attr_dev(input0, "placeholder", "Receiver pubkey");
-    			add_location(input0, file, 73, 28, 1857);
-    			add_location(div6, file, 73, 23, 1852);
-    			add_location(div7, file, 74, 8, 1947);
+    			add_location(input0, file, 73, 28, 1866);
+    			add_location(div6, file, 73, 23, 1861);
+    			add_location(div7, file, 74, 8, 1956);
     			attr_dev(input1, "type", "number");
     			attr_dev(input1, "placeholder", "Enter amount to send");
-    			add_location(input1, file, 74, 31, 1970);
-    			add_location(button1, file, 74, 114, 2053);
-    			add_location(div8, file, 74, 26, 1965);
+    			add_location(input1, file, 74, 31, 1979);
+    			add_location(button1, file, 74, 114, 2062);
+    			add_location(div8, file, 74, 26, 1974);
     			attr_dev(div9, "class", "grid svelte-yz4xpt");
-    			add_location(div9, file, 72, 4, 1810);
-    			add_location(hr1, file, 76, 4, 2112);
-    			add_location(h22, file, 77, 4, 2123);
-    			add_location(button2, file, 78, 121, 2271);
-    			add_location(button3, file, 78, 171, 2321);
-    			add_location(div10, file, 78, 4, 2154);
-    			add_location(hr2, file, 79, 4, 2384);
-    			add_location(h23, file, 80, 4, 2395);
-    			add_location(div11, file, 82, 8, 2447);
+    			add_location(div9, file, 72, 4, 1819);
+    			add_location(hr1, file, 76, 4, 2121);
+    			add_location(h22, file, 77, 4, 2132);
+    			add_location(button2, file, 78, 130, 2289);
+    			add_location(button3, file, 78, 180, 2339);
+    			add_location(div10, file, 78, 4, 2163);
+    			add_location(hr2, file, 79, 4, 2402);
+    			add_location(h23, file, 80, 4, 2413);
+    			add_location(div11, file, 82, 8, 2465);
     			attr_dev(input2, "type", "text");
     			attr_dev(input2, "placeholder", "pubkey");
-    			add_location(input2, file, 82, 35, 2474);
-    			add_location(button4, file, 82, 105, 2544);
-    			add_location(div12, file, 82, 30, 2469);
-    			add_location(strong, file, 83, 8, 2600);
+    			add_location(input2, file, 82, 35, 2492);
+    			add_location(button4, file, 82, 105, 2562);
+    			add_location(div12, file, 82, 30, 2487);
+    			add_location(strong, file, 83, 8, 2618);
     			attr_dev(div13, "class", "grid svelte-yz4xpt");
-    			add_location(div13, file, 81, 4, 2420);
+    			add_location(div13, file, 81, 4, 2438);
     			attr_dev(div14, "class", "wallet svelte-yz4xpt");
     			add_location(div14, file, 64, 0, 1413);
     		},
