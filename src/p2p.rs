@@ -14,11 +14,13 @@ use std::thread;
 use std::time;
 use regex::Regex;
 
-const MESSAGE_GET_BLOCK: &str = "GET_BLOCK";
-const MESSAGE_GET_BLOCKS: &str = "GET_BLOCKS";
-const MESSAGE_NEW_BLOCK: &str = "NEW_BLOCK";
 const MESSAGE_NEW_PEER: &str = "NEW_PEER";
 const MESSAGE_PING: &str = "PING";
+
+const MESSAGE_GET_BLOCK: &str = "GET_BLOCK";
+const MESSAGE_GET_BLOCKS: &str = "GET_BLOCKS";
+
+const MESSAGE_NEW_BLOCK: &str = "NEW_BLOCK";
 const MESSAGE_NEW_TRANSACTION: &str = "NEW_TRANSACTION";
 
 pub struct P2PData {
@@ -43,7 +45,7 @@ struct P2PServer {
 impl P2PServer {
     fn handle_get_blocks (&mut self) -> Result <String, String> {
         let block_hashes = storage::get_block_hashes(&storage::db::blocks_md(true))?;
-        return Ok(serde_json::to_string(&block_hashes).map_err(|e| e.to_string())?);
+        return Ok(serde_json::to_string(&block_hashes).unwrap());
     }
     
     fn handle_get_block (&mut self, block_hash: String) -> Result <String, String> {
