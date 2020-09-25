@@ -1,4 +1,4 @@
-# Nibble
+# Nibble :cookie:
 
 Nibble is a re creation of Bitcoin as a concept. It is intended to create a simple view of Bitcoin with code. It will be built from simple data structures and processes, eventually becoming ~~a network that anyone can run~~ **FAILED**
 
@@ -14,11 +14,11 @@ Explorer and Wallet UI: `http://localhost:1339`
 
 ## Guide
 
-https://monokh.com/posts/bitcoin-from-scratch-part-1
+Data Structures: https://monokh.com/posts/bitcoin-from-scratch-part-1
 
-https://monokh.com/posts/bitcoin-from-scratch-part-2
+The Node: https://monokh.com/posts/bitcoin-from-scratch-part-2
 
-https://monokh.com/posts/bitcoin-from-scratch-part-3
+The Network: https://monokh.com/posts/bitcoin-from-scratch-part-3
 
 ## CLI
 
