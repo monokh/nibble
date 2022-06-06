@@ -24,7 +24,7 @@ jsonrpc-http-server = "14.2.0"
 jsonrpc-derive = "14.2.1"
 rocksdb = "0.14.0"
 reqwest = { version = "0.10.7", features = ["json"] }
-tokio = { version = "0.2.22", features = ["full"] }
+tokio = { version = "1.8.4", features = ["full"] }
 jsonrpc-client-http = "0.5.0"
 jsonrpc-client-core = "0.5.0"
 jsonrpc-core-client = { version = "14.2.0", features = ["http"] }
